@@ -1,0 +1,45 @@
+name: Run setup-auth-app on runner and commit zip
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  run-setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Make setup script executable
+        run: chmod +x setup-auth-app.sh || true
+
+      - name: Run setup-auth-app.sh
+        run: |
+          # Run the script which will create auth-app and related files
+          ./setup-auth-app.sh
+        env:
+          CI: true
+
+      - name: Ensure zip tool is present
+        run: sudo apt-get update && sudo apt-get install -y zip
+
+      - name: Create website_scrape.zip
+        run: |
+          zip -r website_scrape.zip auth-app/ || true
+          # list zip contents for logging
+          unzip -l website_scrape.zip || true
+
+      - name: Commit and push changes (add new files and zip)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "ci: add auth-app and update website_scrape.zip" || echo "No changes to commit"
+          git push origin HEAD:main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
